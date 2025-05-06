@@ -15,6 +15,8 @@ services:
       DB_NAME: yourdb
       DB_PORT: 5432
     restart: always
+    networks:
+      - mainapp_net
 
   frontend:
     build: ./frontend
@@ -24,6 +26,8 @@ services:
     depends_on:
       - backend
     restart: always
+    networks:
+      - mainapp_net
 
   db:
     image: postgres:latest
@@ -35,3 +39,19 @@ services:
     ports:
       - "5432:5432"
     restart: always
+    volumes:
+      - postgres_data:/var/lib/postgresql/dataa659a866d885
+    networks:
+      - mainapp_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U youruser -d yourdb"]
+      interval: 10s
+      retries: 5
+      
+networks:
+  mainapp_net:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local

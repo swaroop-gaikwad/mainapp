@@ -12,16 +12,23 @@ import (
 	"gorm.io/gorm"
 	"log"
 	"os"
+	"time"
 )
 
 func main() {
 
-	app := fiber.New()
+	/*app := fiber.New()
 	app.Use(cors.New())
 	app.Use(cors.New(cors.Config{
 		AllowOrigins: os.Getenv("ALLOWED_ORIGINS"),
 		AllowHeaders: "Origin, Content-Type, Accept",
+	}))*/
+	app := fiber.New()
+	app.Use(cors.New(cors.Config{
+	AllowOrigins: "*", // ← Allow all origins (for testing)
+	AllowHeaders: "Origin, Content-Type, Accept",
 	}))
+
 	db := initializeDatabaseConnection()
 	repository.RunMigrations(db)
 	employeeRepository := repository.NewEmployeeRepository(db)
@@ -33,6 +40,7 @@ func main() {
 		log.Fatalln(fmt.Sprintf("error starting the server %s", err.Error()))
 	}
 }
+/*
 func initializeDatabaseConnection() *gorm.DB {
 	db, err := gorm.Open(postgres.New(postgres.Config{
 		DSN:                  createDsn(),
@@ -44,6 +52,32 @@ func initializeDatabaseConnection() *gorm.DB {
 
 	return db
 }
+*/
+func initializeDatabaseConnection() *gorm.DB {
+	var db *gorm.DB
+	var err error
+	dsn := createDsn()
+
+	maxRetries := 10
+	for i := 0; i < maxRetries; i++ {
+		db, err = gorm.Open(postgres.New(postgres.Config{
+			DSN:                  dsn,
+			PreferSimpleProtocol: true,
+		}), &gorm.Config{})
+
+		if err == nil {
+			log.Println("Successfully connected to the database.")
+			return db
+		}
+
+		log.Printf("Attempt %d: failed to connect to database: %s", i+1, err)
+		time.Sleep(3 * time.Second)
+	}
+
+	log.Fatalf("Could not connect to the database after %d attempts: %s", maxRetries, err)
+	return nil
+}
+
 
 func createDsn() string {
 	dsnFormat := "host=%s user=%s password=%s dbname=%s port=%s sslmode=disable"
